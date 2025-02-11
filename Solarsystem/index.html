@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Solar System Simulation with Planets, Orbits, Shadows, and Moveable Camera
+    </title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden; /* Prevent scrollbars */
+      }
+      canvas {
+        display: block;
+      }
+      #watermark {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        color: rgba(255, 255, 255, 0.5); /* Semi-transparent white */
+        font-size: 12px;
+        font-family: sans-serif;
+        pointer-events: none; /* Make it non-interactive */
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  </head>
+  <body>
+    <div id="watermark">Created By CrackGPT</div>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        // --- Initialize Scene, Camera, Renderer ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          2000
+        );
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Star Background ---
+        const starTexture = new THREE.TextureLoader().load(
+          "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Milky_Way_HR.jpg/1280px-Milky_Way_HR.jpg" // Example star texture, you can replace with your own
+        );
+        const starGeometry = new THREE.SphereGeometry(1000, 64, 64); // Large sphere
+        const starMaterial = new THREE.MeshBasicMaterial({
+          map: starTexture,
+          side: THREE.BackSide, // Render texture on the inside of the sphere
+        });
+        const starBackground = new THREE.Mesh(starGeometry, starMaterial);
+        scene.add(starBackground);
+
+        // --- Sun ---
+        const sunGeometry = new THREE.SphereGeometry(10, 32, 32);
+        const sunMaterial = new THREE.MeshStandardMaterial({
+          color: 0xffff00,
+          emissive: 0xffff00,
+        });
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        sun.castShadow = true;
+        scene.add(sun);
+
+        // --- Planet Data ---
+        const planetsData = [
+          {
+            name: "Mercury",
+            radius: 0.4,
+            distance: 20,
+            color: 0xa69696,
+            revolutionSpeed: 0.16, // Increased revolution speed (0.016 * 10)
+            rotationSpeed: 0.01,
+          },
+          {
+            name: "Venus",
+            radius: 0.9,
+            distance: 25,
+            color: 0xffe066,
+            revolutionSpeed: 0.12, // Increased revolution speed (0.012 * 10)
+            rotationSpeed: 0.008,
+          },
+          {
+            name: "Earth",
+            radius: 1,
+            distance: 30,
+            color: 0x0000ff,
+            revolutionSpeed: 0.1, // Increased revolution speed (0.01 * 10)
+            rotationSpeed: 0.009,
+          },
+          {
+            name: "Mars",
+            radius: 0.5,
+            distance: 38,
+            color: 0xff6347,
+            revolutionSpeed: 0.08, // Increased revolution speed (0.008 * 10)
+            rotationSpeed: 0.011,
+          },
+          {
+            name: "Jupiter",
+            radius: 3.0,
+            distance: 60,
+            color: 0xffb90f,
+            revolutionSpeed: 0.04, // Increased revolution speed (0.004 * 10)
+            rotationSpeed: 0.006,
+          },
+          {
+            name: "Saturn",
+            radius: 2.5,
+            distance: 85,
+            color: 0xd2b48c,
+            revolutionSpeed: 0.03, // Increased revolution speed (0.003 * 10)
+            rotationSpeed: 0.005,
+            hasRing: true,
+          },
+          {
+            name: "Uranus",
+            radius: 1.8,
+            distance: 110,
+            color: 0xadd8e6,
+            revolutionSpeed: 0.02, // Increased revolution speed (0.002 * 10)
+            rotationSpeed: 0.004,
+          },
+          {
+            name: "Neptune",
+            radius: 1.7,
+            distance: 130,
+            color: 0x4682b4,
+            revolutionSpeed: 0.015, // Increased revolution speed (0.0015 * 10)
+            rotationSpeed: 0.0035,
+          },
+        ];
+
+        const planets = {};
+
+        // --- Create Planets and Orbits ---
+        planetsData.forEach((planetData) => {
+          // Planet
+          const planetGeometry = new THREE.SphereGeometry(
+            planetData.radius,
+            32,
+            32
+          );
+          const planetMaterial = new THREE.MeshStandardMaterial({
+            color: planetData.color,
+          });
+          const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+          planet.position.x = planetData.distance;
+          planet.castShadow = true;
+          planet.receiveShadow = true;
+          planets[planetData.name] = planet;
+          scene.add(planet);
+
+          // Orbit Ring
+          const orbitRingGeometry = new THREE.TorusGeometry(
+            planetData.distance,
+            0.02,
+            2,
+            64,
+            Math.PI * 2
+          );
+          const orbitRingMaterial = new THREE.MeshBasicMaterial({
+            color: 0xaaaaaa,
+            side: THREE.DoubleSide,
+          });
+          const orbitRing = new THREE.Mesh(
+            orbitRingGeometry,
+            orbitRingMaterial
+          );
+          orbitRing.rotation.x = Math.PI / 2;
+          scene.add(orbitRing);
+
+          // Saturn Rings
+          if (planetData.hasRing && planetData.name === "Saturn") {
+            const saturnRingGeometry = new THREE.RingGeometry(3, 5, 32);
+            const saturnRingMaterial = new THREE.MeshBasicMaterial({
+              color: 0xc0c0c0,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.8,
+            });
+            const saturnRing = new THREE.Mesh(
+              saturnRingGeometry,
+              saturnRingMaterial
+            );
+            saturnRing.rotation.x = Math.PI / 2;
+            planet.add(saturnRing);
+          }
+        });
+
+        // --- Moon ---
+        const earth = planets["Earth"];
+        const moonGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+        const moonMaterial = new THREE.MeshStandardMaterial({
+          color: 0x888888,
+        });
+        const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+        moon.position.x = 4;
+        moon.castShadow = true;
+        moon.receiveShadow = true;
+        earth.add(moon);
+
+        // --- Ground Plane Removed ---
+        // Code for ground plane was here and has been removed
+
+        // --- Lighting ---
+        const pointLight = new THREE.PointLight(0xffffff, 2, 500);
+        pointLight.position.set(0, 0, 0);
+        pointLight.castShadow = true;
+        pointLight.shadow.mapSize.width = 1024;
+        pointLight.shadow.mapSize.height = 1024;
+        scene.add(pointLight);
+
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        // --- Camera Controls ---
+        camera.position.set(0, 50, 150);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 20;
+        controls.maxDistance = 500;
+
+        // --- Animation ---
+        const moonRotationSpeed = 0.02;
+
+        function animate() {
+          requestAnimationFrame(animate);
+
+          // Planet Revolutions and Rotations
+          planetsData.forEach((planetData) => {
+            const planet = planets[planetData.name];
+
+            // Planet Rotation
+            planet.rotation.y += planetData.rotationSpeed; // Use individual rotation speed
+
+            // Planet Revolution
+            planet.position.x =
+              Math.cos(Date.now() * planetData.revolutionSpeed * 0.001) *
+              planetData.distance;
+            planet.position.z =
+              Math.sin(Date.now() * planetData.revolutionSpeed * 0.001) *
+              planetData.distance;
+          });
+
+          // Moon Animation (Rotation and Revolution)
+          moon.rotation.y += moonRotationSpeed;
+          moon.position.x = Math.cos(Date.now() * 0.01 * 0.001) * 4;
+          moon.position.z = Math.sin(Date.now() * 0.01 * 0.001) * 4;
+
+          controls.update();
+          renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // --- Responsive Canvas ---
+        window.addEventListener("resize", () => {
+          const newWidth = window.innerWidth;
+          const newHeight = window.innerHeight;
+
+          camera.aspect = newWidth / newHeight;
+          camera.updateProjectionMatrix();
+
+          renderer.setSize(newWidth, newHeight);
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        });
+      });
+    </script>
+  </body>
+</html>
