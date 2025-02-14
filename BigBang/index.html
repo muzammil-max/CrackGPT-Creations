@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Big Bang Explosion</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #explodeButton {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            z-index: 1; /* Ensure button is above canvas */
+        }
+    </style>
+</head>
+<body>
+    <button id="explodeButton">Big Bang!</button>
+    <canvas id="bgCanvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bgCanvas') });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        camera.position.z = 5;
+
+        // Particle System for Explosion
+        const particleCount = 15000;
+        const particlesGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+        const colors = new Float32Array(particleCount * 3);
+
+        let color = new THREE.Color();
+
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            positions[i3 + 0] = 0;
+            positions[i3 + 1] = 0;
+            positions[i3 + 2] = 0;
+
+            sizes[i] = 0.1;
+
+            color.setHSL(Math.random(), 1.0, 0.5);
+            colors[i3 + 0] = color.r;
+            colors[i3 + 1] = color.g;
+            colors[i3 + 2] = color.b;
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particlesGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.1,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            transparent: true
+        });
+
+        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particles);
+
+        let explosionStarted = false;
+        let velocities = [];
+        const explosionSpeed = 0.07;
+        const particleSizeDecay = 0.993;
+        let explosionFrame = 0;
+        const maxExplosionFrames = 150; // Control duration of explosion
+
+        function explode() {
+            if (explosionStarted) return;
+            explosionStarted = true;
+            explosionFrame = 0;
+            velocities = []; // Reset velocities for new explosion
+
+            const positionsAttribute = particlesGeometry.attributes.position;
+
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const x = (Math.random() - 0.5) * 2;
+                const y = (Math.random() - 0.5) * 2;
+                const z = (Math.random() - 0.5) * 2;
+                const direction = new THREE.Vector3(x, y, z).normalize();
+                velocities[i] = direction.clone().multiplyScalar(explosionSpeed);
+
+                positionsAttribute.array[i3 + 0] = 0; // Reset particle position to origin
+                positionsAttribute.array[i3 + 1] = 0;
+                positionsAttribute.array[i3 + 2] = 0;
+            }
+            positionsAttribute.needsUpdate = true;
+        }
+
+        function animateExplosion() {
+            if (!explosionStarted) return;
+
+            const positionsAttribute = particlesGeometry.attributes.position;
+            const sizesAttribute = particlesGeometry.attributes.size;
+
+            for (let i = 0; i < particleCount; i++) {
+                if (velocities[i]) {
+                    const i3 = i * 3;
+                    positionsAttribute.array[i3 + 0] += velocities[i].x;
+                    positionsAttribute.array[i3 + 1] += velocities[i].y;
+                    positionsAttribute.array[i3 + 2] += velocities[i].z;
+
+                    if (explosionFrame < maxExplosionFrames) {
+                        sizesAttribute.array[i] *= particleSizeDecay;
+                    } else {
+                        sizesAttribute.array[i] = Math.min(sizesAttribute.array[i] * 1.02, 0.1); // Gradually restore size
+                        if (sizesAttribute.array[i] >= 0.099) {
+                             explosionStarted = false; // Stop explosion animation after frames
+                        }
+                    }
+                }
+            }
+            positionsAttribute.needsUpdate = true;
+            sizesAttribute.needsUpdate = true;
+            explosionFrame++;
+
+            if (explosionFrame > maxExplosionFrames * 2) { // Example to fully reset after a while if needed
+                explosionFrame = maxExplosionFrames * 2; // To prevent overflow
+            }
+        }
+
+        function render() {
+            requestAnimationFrame(render);
+            animateExplosion();
+            renderer.render(scene, camera);
+        }
+        render();
+
+        document.getElementById('explodeButton').addEventListener('click', explode);
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', onWindowResize, false);
+    </script>
+</body>
+</html>

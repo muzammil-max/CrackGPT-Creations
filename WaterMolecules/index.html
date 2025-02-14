@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Water Molecule Simulation</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #f0f0f0;
+      }
+      canvas {
+        display: block;
+        background-color: #e0f7fa;
+      } /* Light blue background for water */
+      #Temperature {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        padding: 10px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius: 5px;
+      }
+      #speedSlider {
+        width: 200px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="Temperature">
+      <label for="speedSlider">Temperature:</label>
+      <input
+        type="range"
+        id="speedSlider"
+        min="0"
+        max=""
+        value="1"
+        step="0.1"
+      />
+      <span id="speedValue">1.0</span>
+    </div>
+
+    <canvas id="waterCanvas"></canvas>
+
+    <script>
+      const canvas = document.getElementById("waterCanvas");
+      const ctx = canvas.getContext("2d");
+      const speedSlider = document.getElementById("speedSlider");
+      const speedValueDisplay = document.getElementById("speedValue");
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const molecules = [];
+      const numMolecules = 30; // Number of water molecules
+      const moleculeSize = 20; // Size of the molecule representation
+      const atomRadius = moleculeSize / 5;
+      const bondLength = moleculeSize / 2;
+      const interactionDistance = moleculeSize * 2; // Distance to consider molecules 'near'
+      let speedFactor = parseFloat(speedSlider.value); // Initial speed factor
+
+      speedSlider.addEventListener("input", function () {
+        speedFactor = parseFloat(speedSlider.value);
+        speedValueDisplay.textContent = speedFactor.toFixed(1);
+      });
+
+      // Water molecule class
+      class WaterMolecule {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          this.vx = (Math.random() - 0.5) * 0.5; // velocity x
+          this.vy = (Math.random() - 0.5) * 0.5; // velocity y
+        }
+
+        draw() {
+          // Oxygen atom (larger, red)
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, atomRadius * 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = "red";
+          ctx.fill();
+          ctx.closePath();
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Hydrogen atoms (smaller, white/grey)
+          ctx.beginPath();
+          ctx.arc(
+            this.x + bondLength,
+            this.y + bondLength,
+            atomRadius,
+            0,
+            Math.PI * 2
+          );
+          ctx.fillStyle = "white";
+          ctx.fill();
+          ctx.closePath();
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(
+            this.x - bondLength,
+            this.y + bondLength,
+            atomRadius,
+            0,
+            Math.PI * 2
+          );
+          ctx.fillStyle = "white";
+          ctx.fill();
+          ctx.closePath();
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Bonds within water molecule (lines) - Simple representation
+          ctx.beginPath();
+          ctx.moveTo(this.x, this.y);
+          ctx.lineTo(this.x + bondLength, this.y + bondLength);
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(this.x, this.y);
+          ctx.lineTo(this.x - bondLength, this.y + bondLength);
+          ctx.strokeStyle = "black";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        update() {
+          this.x += this.vx * speedFactor; // Apply speed factor to velocity
+          this.y += this.vy * speedFactor; // Apply speed factor to velocity
+
+          // Bounce off edges
+          if (
+            this.x + atomRadius * 1.5 > canvas.width ||
+            this.x - atomRadius * 1.5 < 0
+          ) {
+            this.vx = -this.vx;
+          }
+          if (
+            this.y + atomRadius * 1.5 > canvas.height ||
+            this.y - atomRadius * 1.5 < 0
+          ) {
+            this.vy = -this.vy;
+          }
+        }
+      }
+
+      // Function to calculate distance between two molecules
+      function distance(mol1, mol2) {
+        const dx = mol1.x - mol2.x;
+        const dy = mol1.y - mol2.y;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      // Initialize molecules
+      for (let i = 0; i < numMolecules; i++) {
+        molecules.push(
+          new WaterMolecule(
+            Math.random() * canvas.width,
+            Math.random() * canvas.height
+          )
+        );
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < molecules.length; i++) {
+          molecules[i].update();
+          molecules[i].draw();
+
+          // Check for interactions with other molecules
+          for (let j = i + 1; j < molecules.length; j++) {
+            const dist = distance(molecules[i], molecules[j]);
+            if (dist < interactionDistance) {
+              // Draw hydrogen bond (dashed line) when near - Simplified representation
+              ctx.beginPath();
+              ctx.moveTo(molecules[i].x, molecules[i].y); // Oxygen of mol1
+              ctx.lineTo(molecules[j].x, molecules[j].y); // Oxygen of mol2 -  Simplified, ideally to Hydrogen
+              ctx.strokeStyle = "blue"; // Hydrogen bond color
+              ctx.lineWidth = 2;
+              ctx.setLineDash([5, 5]); // Dashed line for hydrogen bond
+              ctx.stroke();
+              ctx.setLineDash([]); // Reset line dash
+            }
+          }
+        }
+      }
+
+      animate(); // Start animation
+    </script>
+  </body>
+</html>

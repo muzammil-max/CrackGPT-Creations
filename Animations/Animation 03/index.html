@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>3D Wireframe Ball Animation</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+    <!-- Include Three.js from a CDN in the head so it's available when the script runs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r150/three.min.js"></script>
+  </head>
+  <body>
+    <script>
+      // Check if THREE is defined
+      if (typeof THREE === "undefined") {
+        console.error(
+          "THREE is not defined. Please check your Three.js script tag."
+        );
+      } else {
+        // Set up the scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create a wireframe cube
+        const cubeSize = 10;
+        const cubeGeometry = new THREE.BoxGeometry(
+          cubeSize,
+          cubeSize,
+          cubeSize
+        );
+        const wireframeGeometry = new THREE.WireframeGeometry(cubeGeometry);
+        const cubeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+        const cubeWireframe = new THREE.LineSegments(
+          wireframeGeometry,
+          cubeMaterial
+        );
+        scene.add(cubeWireframe);
+
+        // Create a ball (sphere)
+        const ballGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const ballMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+        scene.add(ball);
+
+        // Position the camera so the cube is visible
+        camera.position.z = 15;
+
+        // Animation: Make the ball move along a looping, curving path inside the cube.
+        let angle = 0;
+        function animate() {
+          requestAnimationFrame(animate);
+
+          // Update angle for movement
+          angle += 0.01;
+
+          // Compute ball position using sine and cosine for a smooth, looping motion:
+          ball.position.x = (cubeSize / 2 - 1) * Math.cos(angle);
+          ball.position.z = (cubeSize / 2 - 1) * Math.sin(angle);
+          ball.position.y = (cubeSize / 2 - 1) * Math.sin(angle * 0.5);
+
+          renderer.render(scene, camera);
+        }
+        animate();
+
+        // Update renderer and camera when the window is resized
+        window.addEventListener("resize", () => {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      }
+    </script>
+  </body>
+</html>

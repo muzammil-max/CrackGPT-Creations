@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Moving Sphere in Colorful Polygon</title>
+    <style>
+      body {
+        margin: 0;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Scene, Camera, and Renderer setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        const renderer = new THREE.WebGLRenderer({ alpha: true }); // Enable alpha for transparency
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document
+          .getElementById("canvas-container")
+          .appendChild(renderer.domElement);
+
+        // Sphere Geometry, Material, and Mesh
+        const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+        const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff }); // White sphere
+        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+        scene.add(sphere);
+
+        // Colorful Transparent Polygon Geometry (Tetrahedron example)
+        const polygonGeometry = new THREE.TetrahedronGeometry(5);
+        const polygonMaterial = new THREE.MeshBasicMaterial({
+          vertexColors: true, // Enable vertex colors
+          transparent: true, // Enable transparency
+          opacity: 0.5, // Set overall opacity
+          wireframe: false, // Display as solid polygon
+        });
+        const polygonMesh = new THREE.Mesh(polygonGeometry, polygonMaterial);
+        scene.add(polygonMesh);
+
+        // Set vertex colors for the polygon
+        const colors = [
+          new THREE.Color(0xff0000), // Red
+          new THREE.Color(0x00ff00), // Green
+          new THREE.Color(0x0000ff), // Blue
+          new THREE.Color(0xffff00), // Yellow
+        ];
+        const polygonVertices = polygonGeometry.attributes.position.array;
+        const polygonColors = [];
+        for (let i = 0; i < polygonVertices.length / 3; i++) {
+          const color = colors[i % colors.length]; // Cycle through colors
+          polygonColors.push(color.r, color.g, color.b);
+        }
+        polygonGeometry.setAttribute(
+          "color",
+          new THREE.Float32BufferAttribute(polygonColors, 3)
+        );
+
+        // Camera positioning to view both sphere and polygon
+        camera.position.z = 15;
+        camera.position.y = 2;
+
+        // Animation loop to move the sphere
+        let animationFrame = 0;
+
+        function animate() {
+          requestAnimationFrame(animate);
+
+          // Sphere movement - sinusoidal motion inside the polygon
+          const time = animationFrame * 0.01;
+          sphere.position.x = Math.sin(time) * 3; // Move along X-axis
+          sphere.position.y = Math.cos(time) * 2; // Move along Y-axis
+          sphere.position.z = Math.sin(time * 0.5) * 1; // Move along Z-axis
+
+          // Rotate the polygon for better visualization
+          polygonMesh.rotation.x += 0.01;
+          polygonMesh.rotation.y += 0.01;
+
+          renderer.render(scene, camera);
+          animationFrame++;
+        }
+
+        animate();
+      });
+    </script>
+  </body>
+</html>

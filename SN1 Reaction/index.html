@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Circuit Simulation</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<div id="scene-container"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    // Initialize Three.js scene, camera, and renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('scene-container').appendChild(renderer.domElement);
+
+    // Set camera position
+    camera.position.set(0, 5, 15);
+    camera.lookAt(0, 0, 0);
+
+    // Create materials
+    const wireMaterial = new THREE.MeshBasicMaterial({ color: 0x808080 }); // Grey for wires
+    const batteryMaterial = new THREE.MeshStandardMaterial({ color: 0xAAAAAA }); // Light grey for battery
+    const bulbOffMaterial = new THREE.MeshStandardMaterial({ color: 0xFFE0B2, emissive: 0x000000 }); // Off bulb color (light yellow)
+    const bulbOnMaterial = new THREE.MeshStandardMaterial({ color: 0xFFECB3, emissive: 0xFFFF00 }); // On bulb color (yellow with emissive glow)
+    const electronMaterial = new THREE.MeshBasicMaterial({ color: 0x00FFFF }); // Cyan for electrons
+    const switchMaterial = new THREE.MeshStandardMaterial({ color: 0x607D8B }); // Blue Grey for switch
+
+    // Create geometries
+    const wireGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4);
+    const batteryGeometry = new THREE.BoxGeometry(1, 2, 1);
+    const bulbGeometry = new THREE.SphereGeometry(0.7, 32, 32);
+    const electronGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+    const switchBaseGeometry = new THREE.BoxGeometry(1.5, 0.2, 0.5);
+    const switchLeverGeometry = new THREE.BoxGeometry(0.2, 0.5, 0.5);
+
+    // Create circuit components
+    const battery = new THREE.Mesh(batteryGeometry, batteryMaterial);
+    battery.position.set(0, 0, 0);
+    scene.add(battery);
+
+    const bulb = new THREE.Mesh(bulbGeometry, bulbOffMaterial);
+    bulb.position.set(0, 3, 0);
+    scene.add(bulb);
+
+    // Wires
+    function createWire(length, position, rotation) {
+        const wire = new THREE.Mesh(wireGeometry.clone(), wireMaterial);
+        wire.scale.y = length / 4; // Scale cylinder to desired length
+        wire.position.copy(position);
+        wire.rotation.set(rotation.x, rotation.y, rotation.z);
+        scene.add(wire);
+        return wire;
+    }
+
+    const wire1 = createWire(3, new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0)); // Battery to right
+    const wire2 = createWire(3, new THREE.Vector3(1.5, 1, 1.5), new THREE.Vector3(0, Math.PI/2, 0)); // Right wire vertical
+    const wire3 = createWire(3, new THREE.Vector3(3, 1, 0), new THREE.Vector3(0, 0, 0)); // Right to switch base
+    const wire4 = createWire(3, new THREE.Vector3(3, 3, 0), new THREE.Vector3(0, 0, 0)); // Bulb to right
+    const wire5 = createWire(3, new THREE.Vector3(1.5, 3, 1.5), new THREE.Vector3(0, Math.PI/2, 0)); // Left wire vertical
+    const wire6 = createWire(3, new THREE.Vector3(0, 3, 0), new THREE.Vector3(0, 0, 0)); // Bulb to battery
+
+    // Switch
+    const switchBase = new THREE.Mesh(switchBaseGeometry, switchMaterial);
+    switchBase.position.set(3, 1, 0);
+    scene.add(switchBase);
+
+    const switchLever = new THREE.Mesh(switchLeverGeometry, switchMaterial);
+    switchLever.position.set(3.5, 1, 0);
+    switchLever.rotation.z = Math.PI / 2; // Initial open position
+    switchLever.userData = { isOpen: true }; // Store switch state
+    scene.add(switchLever);
+
+    // Electrons
+    const electrons = [];
+    const numElectrons = 20;
+    for (let i = 0; i < numElectrons; i++) {
+        const electron = new THREE.Mesh(electronGeometry, electronMaterial);
+        electron.position.set(-0.5, -0.5, 0); // Start near battery negative
+        scene.add(electron);
+        electrons.push(electron);
+        electron.visible = false; // Initially hide electrons
+    }
+
+    let electronIndex = 0;
+    let switchOpen = true; // Initial switch state
+    let electronSpeed = 0.02;
+
+    // Electron path points (approximate circuit path)
+    const electronPathPoints = [
+        new THREE.Vector3(-0.5, -0.5, 0), // Start near battery
+        new THREE.Vector3(0.5, -0.5, 0),
+        new THREE.Vector3(2.5, -0.5, 0),
+        new THREE.Vector3(2.5, 1, 0),
+        new THREE.Vector3(3.5, 1, 0), // Switch position
+        new THREE.Vector3(4.5, 1, 0),
+        new THREE.Vector3(5.5, 1, 0),
+        new THREE.Vector3(5.5, 1.5, 0),
+        new THREE.Vector3(5.5, 2.5, 0),
+        new THREE.Vector3(5.5, 3.5, 0),
+        new THREE.Vector3(4.5, 3.5, 0),
+        new THREE.Vector3(3.5, 3.5, 0),
+        new THREE.Vector3(2.5, 3.5, 0),
+        new THREE.Vector3(2.5, 3, 0),
+        new THREE.Vector3(2.5, 2, 0),
+        new THREE.Vector3(2.5, 1, 0),
+        new THREE.Vector3(0.5, 1, 0),
+        new THREE.Vector3(-0.5, 1, 0),
+        new THREE.Vector3(-0.5, 0.5, 0),
+        new THREE.Vector3(-0.5, -0.5, 0)  // Back to start
+    ];
+
+    let pathIndex = 0;
+
+    // Animation loop
+    function animate() {
+        requestAnimationFrame(animate);
+
+        // Rotate camera slightly for better view
+        // camera.position.x = 15 * Math.cos(Date.now() / 5000);
+        // camera.position.z = 15 * Math.sin(Date.now() / 5000);
+        // camera.lookAt(0, 0, 0);
+
+        if (!switchOpen) { // Switch is closed, electrons flow
+            bulb.material = bulbOnMaterial; // Bulb turns on
+            electrons.forEach(electron => electron.visible = true); // Show electrons
+
+             for (let i = 0; i < electrons.length; i++) {
+                const electron = electrons[i];
+                pathIndex = (electron.userData.pathProgress || 0) % electronPathPoints.length;
+
+                const targetPosition = electronPathPoints[pathIndex];
+                electron.position.lerp(targetPosition, electronSpeed); // Move electron along path
+
+                if (electron.position.distanceTo(targetPosition) < 0.01) {
+                    electron.userData.pathProgress = (pathIndex + 1) % electronPathPoints.length;
+                } else {
+                    if (electron.userData.pathProgress === undefined) {
+                        electron.userData.pathProgress = 0;
+                    }
+                }
+            }
+
+
+        } else { // Switch is open
+            bulb.material = bulbOffMaterial; // Bulb turns off
+            electrons.forEach(electron => electron.visible = false); // Hide electrons
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Handle switch click event
+    function onMouseClick(event) {
+        const mouse = new THREE.Vector2();
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+
+        const intersects = raycaster.intersectObject(switchLever);
+
+        if (intersects.length > 0) {
+            switchOpen = !switchOpen; // Toggle switch state
+            switchLever.userData.isOpen = !switchLever.userData.isOpen;
+
+            if (!switchLever.userData.isOpen) { // Close switch
+                switchLever.rotation.z = 0;
+            } else { // Open switch
+                switchLever.rotation.z = Math.PI / 2;
+            }
+        }
+    }
+
+    window.addEventListener('click', onMouseClick, false);
+
+    // Responsive canvas size
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+</script>
+
+</body>
+</html>
